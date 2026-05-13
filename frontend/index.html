@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <title>ML Model Ranker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <h1>🤖 ML Model Ranker</h1>
+    <p class="subtitle">Priorytetyzacja modeli AI dla QA – ważona suma znormalizowanych metryk</p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>1. Wgraj CSV z modelami</h2>
+      <p class="hint">
+        Wymagana kolumna: <code>Model</code>. Opcjonalne: <code>architecture</code>,
+        <code>parameters</code>, <code>accuracy</code>, <code>downloads</code>,
+        <code>stars</code>, <code>latency</code>, <code>documentation</code>, <code>github</code>.
+        <a href="/static/sample_input.csv" download>Pobierz przykładowy CSV</a>.
+      </p>
+      <input type="file" id="file" accept=".csv,text/csv" />
+      <label class="enrich">
+        <input type="checkbox" id="enrich" />
+        Wzbogać dane z Hugging Face / GitHub (model ID w formie <code>org/name</code>)
+      </label>
+    </section>
+
+    <section class="panel">
+      <h2>2. Wagi kryteriów</h2>
+      <p class="hint">Wagi nie muszą sumować się do 1 – aplikacja normalizuje je dynamicznie.</p>
+      <div id="weights" class="weights"></div>
+      <button id="reset-weights" type="button" class="secondary">Przywróć domyślne</button>
+    </section>
+
+    <section class="panel actions">
+      <button id="run" type="button">▶ Oblicz ranking</button>
+      <button id="download" type="button" class="secondary" disabled>⬇ Pobierz CSV</button>
+      <span id="status" class="status"></span>
+    </section>
+
+    <section class="panel">
+      <h2>Wyniki</h2>
+      <div id="results" class="results">
+        <p class="empty">Brak danych. Wgraj CSV i kliknij „Oblicz ranking”.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <small>Backend: FastAPI · Algorytm: ważona suma znormalizowanych metryk (popularność, architektura, rozmiar, jakość, szybkość, dokumentacja)</small>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

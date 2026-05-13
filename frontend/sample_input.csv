@@ -1,0 +1,11 @@
+Model,architecture,parameters,accuracy,downloads,stars,latency,documentation,github
+bert-base-uncased,transformer,110000000,84.5,15000000,,45,full,huggingface/transformers
+distilbert-base-uncased,transformer,66000000,82.2,8000000,,28,full,
+google/mobilenet_v2_1.0_224,cnn,3500000,71.8,250000,,12,partial,
+meta-llama/Llama-2-7b,transformer,7000000000,76.0,1200000,,180,full,
+mistralai/Mistral-7B-v0.1,transformer,7300000000,80.5,2500000,,170,full,
+openai-community/gpt2,transformer,124000000,,5000000,,40,full,
+microsoft/resnet-50,cnn,25000000,76.1,900000,,18,partial,
+facebook/bart-large-cnn,transformer,400000000,44.5,3000000,,110,full,
+google/flan-t5-base,transformer,250000000,79.0,2000000,,95,full,
+sentence-transformers/all-MiniLM-L6-v2,transformer,22700000,72.0,30000000,,9,full,
