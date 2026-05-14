@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 import os
+import socket
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -153,7 +155,79 @@ def index() -> Response:
     return send_from_directory(FRONTEND_DIR, "index.html")
 
 
+def _probe_tcp(host: str, port: int, timeout: float = 2.0) -> bool:
+    """Return True if a TCP connection to host:port can be opened."""
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+# Candidate corporate proxies. First reachable one wins. Override with PROXY_CANDIDATES env.
+DEFAULT_PROXY_CANDIDATES = (
+    ("proxy-dmz.intel.com", 912),
+    ("proxy-dmz.intel.com", 911),
+    ("proxy-chain.intel.com", 912),
+    ("proxy-chain.intel.com", 911),
+)
+
+
+def _parse_proxy_candidates(value: str) -> list[tuple[str, int]]:
+    out: list[tuple[str, int]] = []
+    for piece in value.split(","):
+        piece = piece.strip()
+        if not piece or ":" not in piece:
+            continue
+        host, port = piece.rsplit(":", 1)
+        try:
+            out.append((host.strip(), int(port.strip())))
+        except ValueError:
+            continue
+    return out
+
+
+def autodetect_proxy() -> Optional[str]:
+    """Set HTTP(S)_PROXY env vars if a corporate proxy is reachable.
+
+    Behavior:
+      - If NO_PROXY_AUTODETECT is set (truthy), do nothing.
+      - If HTTPS_PROXY/HTTP_PROXY is already set, keep it.
+      - Else probe candidate proxies; first reachable -> set env vars.
+    Returns the proxy URL set (or None).
+    """
+    log = logging.getLogger("ml-ranker.proxy")
+
+    if os.environ.get("NO_PROXY_AUTODETECT", "").lower() in {"1", "true", "yes"}:
+        log.info("Proxy autodetect disabled via NO_PROXY_AUTODETECT.")
+        return os.environ.get("HTTPS_PROXY") or os.environ.get("HTTP_PROXY")
+
+    existing = os.environ.get("HTTPS_PROXY") or os.environ.get("HTTP_PROXY")
+    if existing:
+        log.info("Using preset proxy from env: %s", existing)
+        return existing
+
+    raw = os.environ.get("PROXY_CANDIDATES")
+    candidates = _parse_proxy_candidates(raw) if raw else list(DEFAULT_PROXY_CANDIDATES)
+
+    for host, port in candidates:
+        if _probe_tcp(host, port, timeout=2.0):
+            url = f"http://{host}:{port}"
+            os.environ["HTTPS_PROXY"] = url
+            os.environ["HTTP_PROXY"] = url
+            os.environ.setdefault("NO_PROXY", "localhost,127.0.0.1,::1")
+            log.info("Proxy autodetected and enabled: %s", url)
+            print(f"[proxy] reachable — enabled {url}")
+            return url
+
+    log.info("No corporate proxy reachable — running in DIRECT mode.")
+    print("[proxy] none reachable — DIRECT mode")
+    return None
+
+
 def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    autodetect_proxy()
     port = int(os.environ.get("PORT", "8000"))
     app.run(host="127.0.0.1", port=port, debug=True)
 

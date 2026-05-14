@@ -47,6 +47,20 @@ python -m backend.app          # http://localhost:8000
 
 Otwórz http://localhost:8000.
 
+### Proxy (sieci korporacyjne)
+
+Serwer automatycznie wykrywa korporacyjny proxy przy starcie. Sprawdza po kolei:
+
+1. Zmienne środowiskowe `HTTPS_PROXY` / `HTTP_PROXY` — jeśli ustawione, używane są bez zmian.
+2. Listę kandydatów (domyślnie Intel: `proxy-dmz.intel.com:912/911`, `proxy-chain.intel.com:912/911`).
+3. Jeśli żaden nie odpowiada → tryb **DIRECT**.
+
+Ręczne nadpisanie:
+```bash
+PROXY_CANDIDATES="my-proxy.example.com:8080,backup-proxy:3128" python -m backend.app
+NO_PROXY_AUTODETECT=1 python -m backend.app   # wyłącz autodetekcję całkowicie
+```
+
 ## Format CSV
 
 ### Wejście
