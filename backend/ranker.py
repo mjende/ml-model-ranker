@@ -128,12 +128,13 @@ def compute_ranking(df: pd.DataFrame, weights: Optional[Dict[str, float]] = None
     w = {**DEFAULT_WEIGHTS, **(weights or {})}
     df = df.copy()
 
-    # Normalize column names: lower-case map
-    lower_map = {c: c.strip().lower() for c in df.columns}
-    df.rename(columns=lower_map, inplace=True)
+    # Normalize column names: lower-case, collapse whitespace/underscores
+    import re as _re
+    norm_map = {c: _re.sub(r"[\s_]+", "_", c.strip().lower()) for c in df.columns}
+    df.rename(columns=norm_map, inplace=True)
 
     if "model" not in df.columns:
-        for alt in ("name", "model_name", "id", "repo"):
+        for alt in ("model_name", "name", "id", "repo"):
             if alt in df.columns:
                 df["model"] = df[alt]
                 break
@@ -233,8 +234,18 @@ def compute_ranking(df: pd.DataFrame, weights: Optional[Dict[str, float]] = None
     for c in norms.columns:
         df[f"{c}_norm"] = norms[c].round(4)
 
-    # Justification text per row
-    df["justification"] = norms.apply(lambda r: _justify(r, w), axis=1)
+    # Justification text per row — needs both raw values and norms
+    raw_for_just = pd.DataFrame({
+        "downloads": pd.to_numeric(df.get("downloads"), errors="coerce") if "downloads" in df.columns else pd.Series([np.nan] * len(df), index=df.index),
+        "stars": pd.to_numeric(df.get("stars"), errors="coerce") if "stars" in df.columns else pd.Series([np.nan] * len(df), index=df.index),
+        "parameters": pd.to_numeric(df.get(size_col), errors="coerce") if size_col else pd.Series([np.nan] * len(df), index=df.index),
+        "accuracy": pd.to_numeric(df.get(acc_col), errors="coerce") if acc_col else pd.Series([np.nan] * len(df), index=df.index),
+        "latency": pd.to_numeric(df.get("latency"), errors="coerce") if "latency" in df.columns else pd.Series([np.nan] * len(df), index=df.index),
+        "architecture": df.get("architecture") if "architecture" in df.columns else pd.Series([None] * len(df), index=df.index),
+    })
+    df["justification"] = [
+        _justify(norms.iloc[i], raw_for_just.iloc[i], w) for i in range(len(df))
+    ]
 
     df.sort_values("score", ascending=False, inplace=True, kind="mergesort")
     df.reset_index(drop=True, inplace=True)
@@ -243,30 +254,67 @@ def compute_ranking(df: pd.DataFrame, weights: Optional[Dict[str, float]] = None
     return RankingResult(df=df, weights=w)
 
 
-def _justify(row: pd.Series, weights: Dict[str, float]) -> str:
-    """Generate a short Polish justification based on dominant factors."""
-    contribs = {k: (weights.get(k, 0) * v) for k, v in row.items() if pd.notna(v)}
-    if not contribs:
-        return "Brak wystarczających danych – wynik neutralny."
-    sorted_c = sorted(contribs.items(), key=lambda kv: kv[1], reverse=True)
-    top = sorted_c[:2]
-    weak = [k for k, v in sorted_c if v < 0.3 * weights.get(k, 1)][:1]
+def _fmt_num(v: float) -> str:
+    if v is None or (isinstance(v, float) and (math.isnan(v) or math.isinf(v))):
+        return "?"
+    av = abs(v)
+    if av >= 1e9:
+        return f"{v/1e9:.1f}B"
+    if av >= 1e6:
+        return f"{v/1e6:.1f}M"
+    if av >= 1e3:
+        return f"{v/1e3:.1f}k"
+    if isinstance(v, float) and not v.is_integer():
+        return f"{v:.2f}"
+    return str(int(v))
 
+
+def _justify(norm_row: pd.Series, raw_row: pd.Series, weights: Dict[str, float]) -> str:
+    """Generate a justification with concrete numbers + dominant/weak factors."""
+    # Build a 'facts' string from raw values that are present
+    facts = []
+    if pd.notna(raw_row.get("downloads")):
+        facts.append(f"pobrania HF: {_fmt_num(raw_row['downloads'])}")
+    if pd.notna(raw_row.get("stars")):
+        facts.append(f"⭐ GitHub: {_fmt_num(raw_row['stars'])}")
+    if pd.notna(raw_row.get("parameters")):
+        facts.append(f"parametry: {_fmt_num(raw_row['parameters'])}")
+    if pd.notna(raw_row.get("accuracy")):
+        v = raw_row["accuracy"]
+        facts.append(f"jakość: {v*100:.1f}%" if 0 <= v <= 1.5 else f"jakość: {v:.1f}")
+    if pd.notna(raw_row.get("latency")):
+        facts.append(f"latencja: {_fmt_num(raw_row['latency'])} ms")
+    arch = raw_row.get("architecture")
+    if isinstance(arch, str) and arch.strip():
+        facts.append(f"arch: {arch.strip()}")
+
+    contribs = {k: (weights.get(k, 0) * v) for k, v in norm_row.items() if pd.notna(v)}
     labels = {
         "popularity": "popularność",
         "architecture": "architektura",
         "size": "kompaktowy rozmiar",
-        "accuracy": "jakość/precyzja",
-        "speed": "szybkość inferencji",
-        "documentation": "dokumentacja/wsparcie",
+        "accuracy": "jakość",
+        "speed": "szybkość",
+        "documentation": "dokumentacja",
     }
 
     parts = []
-    if top:
-        parts.append("Mocne strony: " + ", ".join(labels[k] for k, _ in top) + ".")
-    if weak:
-        parts.append("Słabe: " + ", ".join(labels[k] for k in weak) + ".")
-    missing = [k for k in weights if k not in row.index or pd.isna(row.get(k))]
+    if facts:
+        parts.append(" · ".join(facts))
+
+    if contribs:
+        sorted_c = sorted(contribs.items(), key=lambda kv: kv[1], reverse=True)
+        max_w = max(weights.get(k, 0) or 1e-9 for k, _ in sorted_c)
+        # Strong = norm value >= 0.7 (relative to its own scale)
+        strong = [labels[k] for k, _ in sorted_c if norm_row.get(k, 0) >= 0.7][:3]
+        weak = [labels[k] for k, v in sorted_c if norm_row.get(k, 1) <= 0.3 and weights.get(k, 0) > 0][:2]
+        if strong:
+            parts.append("Mocne: " + ", ".join(strong) + ".")
+        if weak:
+            parts.append("Słabe: " + ", ".join(weak) + ".")
+
+    missing = [labels[k] for k in weights if k not in norm_row.index or pd.isna(norm_row.get(k))]
     if missing:
-        parts.append("Brak danych: " + ", ".join(labels[k] for k in missing) + ".")
-    return " ".join(parts)
+        parts.append("Brak danych: " + ", ".join(missing) + ".")
+
+    return " | ".join(parts) if parts else "Brak wystarczających danych – wynik neutralny."
