@@ -9,7 +9,7 @@ projekt priorytetyzacji modeli dla QA”.
 
 ## Funkcje
 
-- 📥 Import CSV z listą modeli (kolumna `Model` wymagana, reszta opcjonalna).
+- 📥 Import **CSV** lub **XLSX** z listą modeli (kolumna `Model` wymagana, reszta opcjonalna).
 - 🌐 Opcjonalne wzbogacanie danych z **Hugging Face** i **GitHub** (downloads, likes, stars, parametry, architektura).
 - ⚖️ Normalizacja: log + min-max, odwrócona min-max (dla rozmiaru/latencji), skala dyskretna (architektura).
 - 🎚️ Konfigurowalne wagi kryteriów w UI.

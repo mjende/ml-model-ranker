@@ -14,14 +14,14 @@
 
   <main>
     <section class="panel">
-      <h2>1. Wgraj CSV z modelami</h2>
+      <h2>1. Wgraj plik z modelami (CSV lub XLSX)</h2>
       <p class="hint">
         Wymagana kolumna: <code>Model</code>. Opcjonalne: <code>architecture</code>,
         <code>parameters</code>, <code>accuracy</code>, <code>downloads</code>,
         <code>stars</code>, <code>latency</code>, <code>documentation</code>, <code>github</code>.
         <a href="/static/sample_input.csv" download>Pobierz przykładowy CSV</a>.
       </p>
-      <input type="file" id="file" accept=".csv,text/csv" />
+      <input type="file" id="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" />
       <label class="enrich">
         <input type="checkbox" id="enrich" />
         Wzbogać dane z Hugging Face / GitHub (model ID w formie <code>org/name</code>)

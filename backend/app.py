@@ -55,11 +55,35 @@ def _parse_weights(weights_json: Optional[str]) -> Optional[Dict[str, float]]:
     return out
 
 
-def _read_csv(file_bytes: bytes) -> pd.DataFrame:
+_XLSX_MAGIC = b"PK\x03\x04"  # xlsx is a zip
+_XLS_MAGIC = b"\xd0\xcf\x11\xe0"  # legacy xls (OLE2)
+
+
+def _read_table(file_bytes: bytes, filename: str = "") -> pd.DataFrame:
+    """Load a tabular file. Supports CSV ("," or ";") and Excel (.xlsx/.xls)."""
+    name = (filename or "").lower()
+    head = file_bytes[:4]
+    is_excel = (
+        name.endswith((".xlsx", ".xlsm", ".xls"))
+        or head.startswith(_XLSX_MAGIC)
+        or head.startswith(_XLS_MAGIC)
+    )
+    if is_excel:
+        try:
+            return pd.read_excel(io.BytesIO(file_bytes))
+        except ImportError as exc:
+            raise ValueError(
+                "Brak biblioteki do XLSX (openpyxl). Zainstaluj: pip install openpyxl."
+            ) from exc
+        except Exception as exc:
+            raise ValueError(f"Nie można odczytać pliku Excel: {exc}") from exc
     try:
         return pd.read_csv(io.BytesIO(file_bytes))
     except Exception:
-        return pd.read_csv(io.BytesIO(file_bytes), sep=";")
+        try:
+            return pd.read_csv(io.BytesIO(file_bytes), sep=";")
+        except Exception as exc:
+            raise ValueError(f"Nie można sparsować pliku CSV/Excel: {exc}") from exc
 
 
 def _get_form_bool(name: str) -> bool:
@@ -84,9 +108,9 @@ def _process_request() -> Any:
     raw = upload.read()
     if not raw:
         raise ValueError("Empty file.")
-    df = _read_csv(raw)
+    df = _read_table(raw, filename=upload.filename or "")
     if df.empty:
-        raise ValueError("CSV has no rows.")
+        raise ValueError("Plik nie zawiera żadnych wierszy.")
 
     enrich = _get_form_bool("enrich")
     github_token = request.form.get("github_token") or None

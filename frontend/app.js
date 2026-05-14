@@ -90,7 +90,7 @@ function renderTable(rows) {
 async function runRanking() {
   const fileEl = $("#file");
   if (!fileEl.files.length) {
-    setStatus("Wybierz plik CSV.", "error");
+    setStatus("Wybierz plik CSV lub XLSX.", "error");
     return;
   }
   setStatus("Obliczanie...");
@@ -120,7 +120,7 @@ async function runRanking() {
 async function downloadCsv() {
   const fileEl = $("#file");
   if (!fileEl.files.length) {
-    setStatus("Najpierw wgraj plik CSV.", "error");
+    setStatus("Najpierw wgraj plik CSV lub XLSX.", "error");
     return;
   }
   const fd = new FormData();
