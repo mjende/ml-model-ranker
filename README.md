@@ -2,20 +2,26 @@
 
 Aplikacja webowa do priorytetyzacji modeli ML/AI dla zespołów QA. Sortuje modele
 według ważonej sumy znormalizowanych metryk: **popularność, architektura, rozmiar,
-precyzja, szybkość inferencji, jakość dokumentacji**.
+jakość, szybkość inferencji, dokumentacja, świeżość, licencja**.
+
+Wynik jest dodatkowo korygowany przez **coverage** (frakcja kryteriów dostępnych
+dla danego modelu) – modele z bardzo niepełnymi danymi nie wyprzedzają tych
+ocenionych kompletnie.
 
 Bazuje na opisie i pseudokodzie z dokumentu projektowego „Ranking modeli ML –
 projekt priorytetyzacji modeli dla QA”.
 
 ## Funkcje
 
-- 📥 Import **CSV** lub **XLSX** z listą modeli (kolumna `Model` wymagana, reszta opcjonalna).
-- 🌐 Opcjonalne wzbogacanie danych z **Hugging Face** i **GitHub** (downloads, likes, stars, parametry, architektura).
-- ⚖️ Normalizacja: log + min-max, odwrócona min-max (dla rozmiaru/latencji), skala dyskretna (architektura).
-- 🎚️ Konfigurowalne wagi kryteriów w UI.
-- 🛡️ Obsługa braków danych – brakująca metryka ⇒ wagi pozostałych są renormalizowane (model nie jest karany).
-- 📊 Tabela wyników z paskiem score, kolumnami `*_norm` i uzasadnieniem.
-- ⬇️ Eksport posortowanego rankingu do CSV.
+- 📥 Import **CSV** lub **XLSX** z listą modeli (kolumna `Model` / `Model name` wymagana, reszta opcjonalna).
+- 🌐 Opcjonalne wzbogacanie danych z **Hugging Face** i **GitHub** (downloads, likes, stars, parametry, architektura, **licencja**, **data ostatniej aktualizacji**).
+- ⚖️ 8 kryteriów: popularność, architektura (+ bonus za rzadkie architektury), rozmiar, jakość, szybkość, dokumentacja, **świeżość** (eksponencjalny zanik, półokres 365 dni), **licencja** (permisywność).
+- 🎯 **Presety wag**: balanced, qa_focus, performance, research, production – wybór z dropdown lub edycja własna.
+- 🛡️ Obsługa braków danych – brakująca metryka ⇒ wagi pozostałych są renormalizowane, a finalny score skalowany przez coverage (0.6–1.0).
+- 🎚️ Wagi konfigurowane suwakami, zapamiętywane w localStorage.
+- 📊 Tabela: sortowanie po kolumnach, filtr po nazwie/architekturze/licencji, filtr modality, toggle kolumn `*_norm`, kolorowy pasek score (red→green), badge coverage.
+- 🔍 Modal ze szczegółami modelu po kliknięciu wiersza (z linkami do HF i GitHub).
+- ⬇️ Eksport rankingu do **CSV** lub **JSON**.
 
 ## Architektura
 

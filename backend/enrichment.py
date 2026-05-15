@@ -58,6 +58,12 @@ def _hf_lookup(model_id: str, session: Optional[requests.Session] = None) -> Dic
             total = safetensors.get("total")
             if isinstance(total, (int, float)):
                 out["parameters"] = int(total)
+        # License: prefer cardData.license, fallback to top-level
+        card = data.get("cardData") or {}
+        if isinstance(card, dict) and card.get("license"):
+            out["license"] = str(card["license"])
+        elif data.get("license"):
+            out["license"] = str(data["license"])
         if data.get("lastModified"):
             out["last_modified"] = data["lastModified"]
         return out

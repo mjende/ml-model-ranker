@@ -19,7 +19,7 @@ import pandas as pd
 from flask import Flask, Response, jsonify, request, send_from_directory
 
 from .enrichment import enrich_dataframe
-from .ranker import DEFAULT_WEIGHTS, compute_ranking
+from .ranker import DEFAULT_WEIGHTS, WEIGHT_PRESETS, compute_ranking
 
 ROOT = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = ROOT / "frontend"
@@ -101,6 +101,11 @@ def health() -> Response:
 @app.get("/api/weights")
 def get_default_weights() -> Response:
     return jsonify(dict(DEFAULT_WEIGHTS))
+
+
+@app.get("/api/presets")
+def get_presets() -> Response:
+    return jsonify(WEIGHT_PRESETS)
 
 
 def _process_request() -> Any:
